@@ -33,12 +33,12 @@ type Driver interface {
 	MultiDel(k []string) error
 }
 
-type XCache struct {
+type Cache struct {
 	driver     Driver
 	expiration time.Duration
 }
 
-func NewCache(driver Driver, ops ...Option) (*XCache, error) {
+func NewCache(driver Driver, ops ...Option) (*Cache, error) {
 	op := options{
 		expiration: time.Hour * 24,
 	}
@@ -48,7 +48,7 @@ func NewCache(driver Driver, ops ...Option) (*XCache, error) {
 	if op.expiration <= 0 {
 		return nil, ErrInvalidDuration
 	}
-	return &XCache{
+	return &Cache{
 		driver:     driver,
 		expiration: op.expiration,
 	}, nil
@@ -56,15 +56,15 @@ func NewCache(driver Driver, ops ...Option) (*XCache, error) {
 
 /* get cache functions */
 
-func (c *XCache) GetString(k string) (*string, error) {
+func (c *Cache) GetString(k string) (*string, error) {
 	return c.driver.Get(k)
 }
 
-func (c *XCache) GetMultipleString(keys ...string) (map[string]string, error) {
+func (c *Cache) GetMultipleString(keys ...string) (map[string]string, error) {
 	return c.driver.MultiGet(keys)
 }
 
-func (c *XCache) GetBool(k string) (*bool, error) {
+func (c *Cache) GetBool(k string) (*bool, error) {
 	v, e := c.driver.Get(k)
 	if e != nil {
 		return nil, e
@@ -81,7 +81,7 @@ func (c *XCache) GetBool(k string) (*bool, error) {
 	return &b, nil
 }
 
-func (c *XCache) GetInt(k string) (*int, error) {
+func (c *Cache) GetInt(k string) (*int, error) {
 	v, e := c.driver.Get(k)
 	if e != nil {
 		return nil, e
@@ -97,7 +97,7 @@ func (c *XCache) GetInt(k string) (*int, error) {
 	return &i, nil
 }
 
-func (c *XCache) GetMultipleInt(keys ...string) (map[string]int, error) {
+func (c *Cache) GetMultipleInt(keys ...string) (map[string]int, error) {
 	rs, e := c.driver.MultiGet(keys)
 	if e != nil {
 		return nil, e
@@ -113,7 +113,7 @@ func (c *XCache) GetMultipleInt(keys ...string) (map[string]int, error) {
 	return m, nil
 }
 
-func (c *XCache) GetInt64(k string) (*int64, error) {
+func (c *Cache) GetInt64(k string) (*int64, error) {
 	v, e := c.driver.Get(k)
 	if e != nil {
 		return nil, e
@@ -129,7 +129,7 @@ func (c *XCache) GetInt64(k string) (*int64, error) {
 	return &i, nil
 }
 
-func (c *XCache) GetMultipleInt64(keys ...string) (map[string]int64, error) {
+func (c *Cache) GetMultipleInt64(keys ...string) (map[string]int64, error) {
 	rs, e := c.driver.MultiGet(keys)
 	if e != nil {
 		return nil, e
@@ -145,7 +145,7 @@ func (c *XCache) GetMultipleInt64(keys ...string) (map[string]int64, error) {
 	return m, nil
 }
 
-func GetObject[T any](c *XCache, k string) (*T, error) {
+func GetObject[T any](c *Cache, k string) (*T, error) {
 	v, e := c.driver.Get(k)
 	if e != nil {
 		return nil, e
@@ -162,7 +162,7 @@ func GetObject[T any](c *XCache, k string) (*T, error) {
 	return &t, nil
 }
 
-func GetMultipleObject[T any](c *XCache, keys ...string) (map[string]*T, error) {
+func GetMultipleObject[T any](c *Cache, keys ...string) (map[string]*T, error) {
 	rs, e := c.GetMultipleString(keys...)
 	if e != nil {
 		return nil, e
@@ -184,7 +184,7 @@ func GetMultipleObject[T any](c *XCache, keys ...string) (map[string]*T, error) 
 
 /* set cache functions */
 
-func (c *XCache) SetBool(k string, v bool, op ...Option) error {
+func (c *Cache) SetBool(k string, v bool, op ...Option) error {
 	d, e := c.duration(op...)
 	if e != nil {
 		return e
@@ -192,7 +192,7 @@ func (c *XCache) SetBool(k string, v bool, op ...Option) error {
 	return c.driver.Set(k, strconv.FormatBool(v), d)
 }
 
-func (c *XCache) SetString(k string, v string, op ...Option) error {
+func (c *Cache) SetString(k string, v string, op ...Option) error {
 	d, e := c.duration(op...)
 	if e != nil {
 		return e
@@ -200,7 +200,7 @@ func (c *XCache) SetString(k string, v string, op ...Option) error {
 	return c.driver.Set(k, v, d)
 }
 
-func (c *XCache) SetMultipleString(m map[string]string, op ...Option) error {
+func (c *Cache) SetMultipleString(m map[string]string, op ...Option) error {
 	d, e := c.duration(op...)
 	if e != nil {
 		return e
@@ -208,7 +208,7 @@ func (c *XCache) SetMultipleString(m map[string]string, op ...Option) error {
 	return c.driver.MultiSet(m, d)
 }
 
-func (c *XCache) SetInt(k string, v int, op ...Option) error {
+func (c *Cache) SetInt(k string, v int, op ...Option) error {
 	d, e := c.duration(op...)
 	if e != nil {
 		return e
@@ -217,7 +217,7 @@ func (c *XCache) SetInt(k string, v int, op ...Option) error {
 	return c.driver.Set(k, b, d)
 }
 
-func (c *XCache) SetMultipleInt(m map[string]int, op ...Option) error {
+func (c *Cache) SetMultipleInt(m map[string]int, op ...Option) error {
 	d, e := c.duration(op...)
 	if e != nil {
 		return e
@@ -229,7 +229,7 @@ func (c *XCache) SetMultipleInt(m map[string]int, op ...Option) error {
 	return c.driver.MultiSet(mv, d)
 }
 
-func (c *XCache) SetInt64(k string, v int64, op ...Option) error {
+func (c *Cache) SetInt64(k string, v int64, op ...Option) error {
 	d, e := c.duration(op...)
 	if e != nil {
 		return e
@@ -238,7 +238,7 @@ func (c *XCache) SetInt64(k string, v int64, op ...Option) error {
 	return c.driver.Set(k, b, d)
 }
 
-func (c *XCache) SetMultipleInt64(m map[string]int64, op ...Option) error {
+func (c *Cache) SetMultipleInt64(m map[string]int64, op ...Option) error {
 	d, e := c.duration(op...)
 	if e != nil {
 		return e
@@ -250,7 +250,7 @@ func (c *XCache) SetMultipleInt64(m map[string]int64, op ...Option) error {
 	return c.driver.MultiSet(mv, d)
 }
 
-func (c *XCache) SetObject(k string, v interface{}, op ...Option) error {
+func (c *Cache) SetObject(k string, v interface{}, op ...Option) error {
 	d, e := c.duration(op...)
 	if e != nil {
 		return e
@@ -262,7 +262,7 @@ func (c *XCache) SetObject(k string, v interface{}, op ...Option) error {
 	return c.driver.Set(k, string(b), d)
 }
 
-func (c *XCache) SetMultipleObject(m map[string]interface{}, op ...Option) error {
+func (c *Cache) SetMultipleObject(m map[string]interface{}, op ...Option) error {
 	d, e := c.duration(op...)
 	if e != nil {
 		return e
@@ -278,7 +278,7 @@ func (c *XCache) SetMultipleObject(m map[string]interface{}, op ...Option) error
 	return c.driver.MultiSet(mb, d)
 }
 
-func (c *XCache) duration(op ...Option) (time.Duration, error) {
+func (c *Cache) duration(op ...Option) (time.Duration, error) {
 	if len(op) == 0 {
 		return c.expiration, nil
 	}
