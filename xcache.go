@@ -278,6 +278,16 @@ func (c *Cache) SetMultipleObject(m map[string]interface{}, op ...Option) error 
 	return c.driver.MultiSet(mb, d)
 }
 
+func (c *Cache) Del(keys ...string) error {
+	if len(keys) == 0 {
+		return nil
+	}
+	if len(keys) == 1 {
+		return c.driver.Del(keys[0])
+	}
+	return c.driver.MultiDel(keys)
+}
+
 func (c *Cache) duration(op ...Option) (time.Duration, error) {
 	if len(op) == 0 {
 		return c.expiration, nil
