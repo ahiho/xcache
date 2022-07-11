@@ -18,6 +18,7 @@ func NewRistrettoDriver(cache *ristretto.Cache) *RistrettoDriver {
 
 func (r *RistrettoDriver) Set(k string, v string, d time.Duration) error {
 	r.cache.SetWithTTL(k, v, int64(len(v)), d)
+	r.cache.Wait()
 	return nil
 }
 
@@ -32,6 +33,7 @@ func (r *RistrettoDriver) Get(k string) (*string, error) {
 
 func (r *RistrettoDriver) Del(k string) error {
 	r.cache.Del(k)
+	r.cache.Wait()
 	return nil
 }
 
@@ -39,6 +41,7 @@ func (r *RistrettoDriver) MultiSet(m map[string]string, d time.Duration) error {
 	for k, v := range m {
 		r.cache.SetWithTTL(k, v, int64(len(v)), d)
 	}
+	r.cache.Wait()
 	return nil
 }
 
@@ -57,5 +60,6 @@ func (r *RistrettoDriver) MultiDel(keys []string) error {
 	for _, k := range keys {
 		r.cache.Del(k)
 	}
+	r.cache.Wait()
 	return nil
 }
