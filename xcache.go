@@ -167,14 +167,14 @@ func (c *cache) GetMultiInt64(keys ...string) (map[string]int64, error) {
 }
 
 func (c *cache) GetObject(k string, v interface{}) (bool, error) {
-	cv, e := c.driver.Get(k)
+	s, e := c.driver.Get(k)
 	if e != nil {
 		return false, e
 	}
-	if v == nil {
+	if s == nil {
 		return false, nil
 	}
-	b := []byte(*cv)
+	b := []byte(*s)
 	e = msgpack.Unmarshal(b, v)
 	return e == nil, e
 }
