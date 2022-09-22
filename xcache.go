@@ -8,10 +8,6 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-var (
-	ErrKeyNotfound = errors.New("key not found")
-)
-
 type options struct {
 	expiration time.Duration
 }
@@ -37,12 +33,33 @@ type Driver interface {
 	MultiDel(k []string) error
 }
 
-type Cache struct {
+type Cache interface {
+	GetString(k string) (*string, error)
+	GetMultiString(keys ...string) (map[string]string, error)
+	GetBool(k string) (*bool, error)
+	GetInt(k string) (*int, error)
+	GetMultiInt(keys ...string) (map[string]int, error)
+	GetInt64(k string) (*int64, error)
+	GetMultiInt64(keys ...string) (map[string]int64, error)
+	GetObject(k string, v interface{}) (bool, error)
+	SetBool(k string, v bool, op ...Option) error
+	SetString(k string, v string, op ...Option) error
+	SetMultiString(m map[string]string, op ...Option) error
+	SetInt(k string, v int, op ...Option) error
+	SetMultiInt(m map[string]int, op ...Option) error
+	SetInt64(k string, v int64, op ...Option) error
+	SetMultiInt64(m map[string]int64, op ...Option) error
+	SetObject(k string, v interface{}, op ...Option) error
+	SetMultiObject(m map[string]interface{}, op ...Option) error
+	Del(keys ...string) error
+}
+
+type cache struct {
 	driver     Driver
 	expiration time.Duration
 }
 
-func NewCache(driver Driver, ops ...Option) (*Cache, error) {
+func NewCache(driver Driver, ops ...Option) (Cache, error) {
 	op := options{
 		expiration: time.Hour * 24,
 	}
@@ -52,7 +69,7 @@ func NewCache(driver Driver, ops ...Option) (*Cache, error) {
 	if op.expiration <= 0 {
 		return nil, ErrInvalidDuration
 	}
-	return &Cache{
+	return &cache{
 		driver:     driver,
 		expiration: op.expiration,
 	}, nil
@@ -60,15 +77,15 @@ func NewCache(driver Driver, ops ...Option) (*Cache, error) {
 
 /* get cache functions */
 
-func (c *Cache) GetString(k string) (*string, error) {
+func (c *cache) GetString(k string) (*string, error) {
 	return c.driver.Get(k)
 }
 
-func (c *Cache) GetMultiString(keys ...string) (map[string]string, error) {
+func (c *cache) GetMultiString(keys ...string) (map[string]string, error) {
 	return c.driver.MultiGet(keys)
 }
 
-func (c *Cache) GetBool(k string) (*bool, error) {
+func (c *cache) GetBool(k string) (*bool, error) {
 	v, e := c.driver.Get(k)
 	if e != nil {
 		return nil, e
@@ -85,7 +102,7 @@ func (c *Cache) GetBool(k string) (*bool, error) {
 	return &b, nil
 }
 
-func (c *Cache) GetInt(k string) (*int, error) {
+func (c *cache) GetInt(k string) (*int, error) {
 	v, e := c.driver.Get(k)
 	if e != nil {
 		return nil, e
@@ -101,7 +118,7 @@ func (c *Cache) GetInt(k string) (*int, error) {
 	return &i, nil
 }
 
-func (c *Cache) GetMultiInt(keys ...string) (map[string]int, error) {
+func (c *cache) GetMultiInt(keys ...string) (map[string]int, error) {
 	rs, e := c.driver.MultiGet(keys)
 	if e != nil {
 		return nil, e
@@ -117,7 +134,7 @@ func (c *Cache) GetMultiInt(keys ...string) (map[string]int, error) {
 	return m, nil
 }
 
-func (c *Cache) GetInt64(k string) (*int64, error) {
+func (c *cache) GetInt64(k string) (*int64, error) {
 	v, e := c.driver.Get(k)
 	if e != nil {
 		return nil, e
@@ -133,7 +150,7 @@ func (c *Cache) GetInt64(k string) (*int64, error) {
 	return &i, nil
 }
 
-func (c *Cache) GetMultiInt64(keys ...string) (map[string]int64, error) {
+func (c *cache) GetMultiInt64(keys ...string) (map[string]int64, error) {
 	rs, e := c.driver.MultiGet(keys)
 	if e != nil {
 		return nil, e
@@ -149,19 +166,20 @@ func (c *Cache) GetMultiInt64(keys ...string) (map[string]int64, error) {
 	return m, nil
 }
 
-func (c *Cache) Get(k string, v interface{}) error {
+func (c *cache) GetObject(k string, v interface{}) (bool, error) {
 	cv, e := c.driver.Get(k)
 	if e != nil {
-		return e
+		return false, e
 	}
 	if v == nil {
-		return ErrKeyNotfound
+		return false, nil
 	}
 	b := []byte(*cv)
-	return msgpack.Unmarshal(b, v)
+	e = msgpack.Unmarshal(b, v)
+	return e == nil, e
 }
 
-func GetMultiObject[T any](c *Cache, keys []string) (map[string]*T, error) {
+func GetMultiObject[T any](c Cache, keys []string) (map[string]*T, error) {
 	rs, e := c.GetMultiString(keys...)
 	if e != nil {
 		return nil, e
@@ -183,7 +201,7 @@ func GetMultiObject[T any](c *Cache, keys []string) (map[string]*T, error) {
 
 /* set cache functions */
 
-func (c *Cache) SetBool(k string, v bool, op ...Option) error {
+func (c *cache) SetBool(k string, v bool, op ...Option) error {
 	d, e := c.duration(op...)
 	if e != nil {
 		return e
@@ -191,7 +209,7 @@ func (c *Cache) SetBool(k string, v bool, op ...Option) error {
 	return c.driver.Set(k, strconv.FormatBool(v), d)
 }
 
-func (c *Cache) SetString(k string, v string, op ...Option) error {
+func (c *cache) SetString(k string, v string, op ...Option) error {
 	d, e := c.duration(op...)
 	if e != nil {
 		return e
@@ -199,7 +217,7 @@ func (c *Cache) SetString(k string, v string, op ...Option) error {
 	return c.driver.Set(k, v, d)
 }
 
-func (c *Cache) SetMultiString(m map[string]string, op ...Option) error {
+func (c *cache) SetMultiString(m map[string]string, op ...Option) error {
 	d, e := c.duration(op...)
 	if e != nil {
 		return e
@@ -207,7 +225,7 @@ func (c *Cache) SetMultiString(m map[string]string, op ...Option) error {
 	return c.driver.MultiSet(m, d)
 }
 
-func (c *Cache) SetInt(k string, v int, op ...Option) error {
+func (c *cache) SetInt(k string, v int, op ...Option) error {
 	d, e := c.duration(op...)
 	if e != nil {
 		return e
@@ -216,7 +234,7 @@ func (c *Cache) SetInt(k string, v int, op ...Option) error {
 	return c.driver.Set(k, b, d)
 }
 
-func (c *Cache) SetMultiInt(m map[string]int, op ...Option) error {
+func (c *cache) SetMultiInt(m map[string]int, op ...Option) error {
 	d, e := c.duration(op...)
 	if e != nil {
 		return e
@@ -228,7 +246,7 @@ func (c *Cache) SetMultiInt(m map[string]int, op ...Option) error {
 	return c.driver.MultiSet(mv, d)
 }
 
-func (c *Cache) SetInt64(k string, v int64, op ...Option) error {
+func (c *cache) SetInt64(k string, v int64, op ...Option) error {
 	d, e := c.duration(op...)
 	if e != nil {
 		return e
@@ -237,7 +255,7 @@ func (c *Cache) SetInt64(k string, v int64, op ...Option) error {
 	return c.driver.Set(k, b, d)
 }
 
-func (c *Cache) SetMultiInt64(m map[string]int64, op ...Option) error {
+func (c *cache) SetMultiInt64(m map[string]int64, op ...Option) error {
 	d, e := c.duration(op...)
 	if e != nil {
 		return e
@@ -249,7 +267,7 @@ func (c *Cache) SetMultiInt64(m map[string]int64, op ...Option) error {
 	return c.driver.MultiSet(mv, d)
 }
 
-func (c *Cache) SetObject(k string, v interface{}, op ...Option) error {
+func (c *cache) SetObject(k string, v interface{}, op ...Option) error {
 	d, e := c.duration(op...)
 	if e != nil {
 		return e
@@ -261,7 +279,7 @@ func (c *Cache) SetObject(k string, v interface{}, op ...Option) error {
 	return c.driver.Set(k, string(b), d)
 }
 
-func (c *Cache) SetMultiObject(m map[string]interface{}, op ...Option) error {
+func (c *cache) SetMultiObject(m map[string]interface{}, op ...Option) error {
 	d, e := c.duration(op...)
 	if e != nil {
 		return e
@@ -277,7 +295,7 @@ func (c *Cache) SetMultiObject(m map[string]interface{}, op ...Option) error {
 	return c.driver.MultiSet(mb, d)
 }
 
-func (c *Cache) Del(keys ...string) error {
+func (c *cache) Del(keys ...string) error {
 	if len(keys) == 0 {
 		return nil
 	}
@@ -287,7 +305,7 @@ func (c *Cache) Del(keys ...string) error {
 	return c.driver.MultiDel(keys)
 }
 
-func (c *Cache) duration(op ...Option) (time.Duration, error) {
+func (c *cache) duration(op ...Option) (time.Duration, error) {
 	if len(op) == 0 {
 		return c.expiration, nil
 	}
