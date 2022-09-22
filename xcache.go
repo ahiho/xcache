@@ -8,6 +8,10 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
+var (
+	ErrKeyNotfound = errors.New("key not found")
+)
+
 type options struct {
 	expiration time.Duration
 }
@@ -145,24 +149,19 @@ func (c *Cache) GetMultiInt64(keys ...string) (map[string]int64, error) {
 	return m, nil
 }
 
-func GetObject[T any](c *Cache, k string) (*T, error) {
-	v, e := c.driver.Get(k)
+func (c *Cache) Get(k string, v interface{}) error {
+	cv, e := c.driver.Get(k)
 	if e != nil {
-		return nil, e
+		return e
 	}
 	if v == nil {
-		return nil, nil
+		return ErrKeyNotfound
 	}
-	b := []byte(*v)
-	var t T
-	e = msgpack.Unmarshal(b, &t)
-	if e != nil {
-		return nil, e
-	}
-	return &t, nil
+	b := []byte(*cv)
+	return msgpack.Unmarshal(b, v)
 }
 
-func GetMultiObject[T any](c *Cache, keys ...string) (map[string]*T, error) {
+func GetMultiObject[T any](c *Cache, keys []string) (map[string]*T, error) {
 	rs, e := c.GetMultiString(keys...)
 	if e != nil {
 		return nil, e
