@@ -8,11 +8,11 @@ import (
 )
 
 type RedisDriver struct {
-	client *redis.Client
+	client redis.UniversalClient
 	ctx    context.Context
 }
 
-func NewRedisDriver(client *redis.Client) *RedisDriver {
+func NewRedisDriver(client redis.UniversalClient) *RedisDriver {
 	return &RedisDriver{
 		client: client,
 		ctx:    context.Background(),
